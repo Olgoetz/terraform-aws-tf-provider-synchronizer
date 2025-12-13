@@ -1,0 +1,15 @@
+# Copy this file to terraform.tfvars and customize
+
+# AWS Region
+aws_region = "us-east-1"
+
+# HCP Terraform / Terraform Enterprise Configuration
+tfc_organization = "my-organization"
+# tfc_token is sensitive - set via environment variable:
+# export TF_VAR_tfc_token="your-token-here"
+
+# Notification Email
+notification_email = "ops-team@example.com"
+
+# Optional: Customize project name
+# project_name = "my-provider-sync"

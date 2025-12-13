@@ -1,0 +1,134 @@
+{
+  "Comment": "Terraform Provider Synchronization Workflow with Parallel Processing",
+  "StartAt": "ReadConfig",
+  "States": {
+    "ReadConfig": {
+      "Type": "Task",
+      "Resource": "${ReadConfigFunctionArn}",
+      "Comment": "Read provider configurations from S3",
+      "ResultPath": "$",
+      "Next": "ProcessProviders",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyError"
+        }
+      ],
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ]
+    },
+
+    "ProcessProviders": {
+      "Type": "Map",
+      "Comment": "Process each provider in parallel",
+      "ItemsPath": "$.providers",
+      "MaxConcurrency": 5,
+      "ResultPath": "$.results",
+      "Iterator": {
+        "StartAt": "CheckVersionExists",
+        "States": {
+          "CheckVersionExists": {
+            "Type": "Task",
+            "Resource": "${CheckVersionFunctionArn}",
+            "Comment": "Check if provider version already exists on HCP Terraform",
+            "ResultPath": "$",
+            "Next": "ShouldProcess",
+            "Retry": [
+              {
+                "ErrorEquals": ["States.TaskFailed"],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ]
+          },
+
+          "ShouldProcess": {
+            "Type": "Choice",
+            "Comment": "Determine if we should download and upload",
+            "Choices": [
+              {
+                "Variable": "$.shouldProcess",
+                "BooleanEquals": true,
+                "Next": "DownloadAndUpload"
+              }
+            ],
+            "Default": "VersionAlreadyExists"
+          },
+
+          "VersionAlreadyExists": {
+            "Type": "Pass",
+            "Comment": "Version already exists on HCP, skip processing",
+            "Result": {
+              "statusCode": 200,
+              "message": "Version already exists on HCP Terraform, skipped",
+              "skipped": true
+            },
+            "ResultPath": "$.result",
+            "End": true
+          },
+
+          "DownloadAndUpload": {
+            "Type": "Task",
+            "Resource": "${DownloadAndUploadFunctionArn}",
+            "Comment": "Download from public registry and upload to HCP Terraform",
+            "ResultPath": "$.result",
+            "TimeoutSeconds": 900,
+            "End": true,
+            "Retry": [
+              {
+                "ErrorEquals": ["States.TaskFailed"],
+                "IntervalSeconds": 5,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ]
+          }
+        }
+      },
+      "Next": "Success",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyError"
+        }
+      ]
+    },
+
+    "Success": {
+      "Type": "Succeed",
+      "Comment": "Workflow completed successfully"
+    },
+
+    "NotifyError": {
+      "Type": "Task",
+      "Resource": "${ErrorHandlerFunctionArn}",
+      "Comment": "Send error notification via SNS",
+      "ResultPath": "$.notification",
+      "Next": "Failed",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 1.5
+        }
+      ]
+    },
+
+    "Failed": {
+      "Type": "Fail",
+      "Comment": "Workflow failed",
+      "Error": "ProviderSyncFailed",
+      "Cause": "See error details in the execution history and check your email for notification"
+    }
+  }
+}
