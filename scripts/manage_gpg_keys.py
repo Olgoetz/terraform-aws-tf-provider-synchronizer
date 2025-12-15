@@ -202,7 +202,7 @@ def extract_key_id_from_file(filepath: str) -> Optional[Dict[str, str]]:
     path = Path(filepath)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {filepath}")
-    
+
     try:
         result = subprocess.run(
             ["gpg", "--show-keys", "--with-colons", filepath],
@@ -210,7 +210,7 @@ def extract_key_id_from_file(filepath: str) -> Optional[Dict[str, str]]:
             text=True,
             check=True
         )
-        
+
         # Parse the output to extract key information
         # Format: pub:...:keysize:algorithm:keyid:creation_date:...
         key_info = {}
@@ -225,7 +225,7 @@ def extract_key_id_from_file(filepath: str) -> Optional[Dict[str, str]]:
                 key_info['uid'] = parts[9]
             elif parts[0] == 'fpr':  # Fingerprint
                 key_info['fingerprint'] = parts[9]
-        
+
         return key_info if key_info else None
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         return None
@@ -460,28 +460,28 @@ def cmd_extract(args, manager: GPGKeyManager):
     """Extract key ID from ASCII armored key file."""
     try:
         print(f"Extracting key information from: {args.file}")
-        
+
         key_info = extract_key_id_from_file(args.file)
-        
+
         if not key_info:
             print(f"Error: Could not extract key information from file", file=sys.stderr)
             return 1
-        
+
         print(f"\nGPG Key Information:")
         print(f"  Key ID:      {key_info.get('key_id', 'N/A')}")
         print(f"  Fingerprint: {key_info.get('fingerprint', 'N/A')}")
         print(f"  Algorithm:   {key_info.get('algorithm', 'N/A')}")
         print(f"  Key Size:    {key_info.get('keysize', 'N/A')} bits")
-        
+
         if 'uid' in key_info:
             print(f"  User ID:     {key_info['uid']}")
-        
+
         if 'created' in key_info:
             # Convert Unix timestamp to readable date
             from datetime import datetime
             created_date = datetime.fromtimestamp(int(key_info['created']))
             print(f"  Created:     {created_date.strftime('%Y-%m-%d %H:%M:%S')}")
-        
+
         return 0
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)

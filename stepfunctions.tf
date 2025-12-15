@@ -10,11 +10,11 @@ resource "aws_sfn_state_machine" "provider_sync" {
   role_arn = aws_iam_role.stepfunctions.arn
 
   definition = templatefile("${path.module}/stepfunctions/state_machine.json", {
-    ReadConfigFunctionArn    = aws_lambda_function.read_config.arn
-    CheckVersionFunctionArn  = aws_lambda_function.check_version.arn
-    DownloadToS3FunctionArn  = aws_lambda_function.download_to_s3.arn
-    UploadFromS3FunctionArn  = aws_lambda_function.upload_from_s3.arn
-    ErrorHandlerFunctionArn  = aws_lambda_function.error_handler.arn
+    ReadConfigFunctionArn   = aws_lambda_function.read_config.arn
+    CheckVersionFunctionArn = aws_lambda_function.check_version.arn
+    DownloadToS3FunctionArn = aws_lambda_function.download_to_s3.arn
+    UploadFromS3FunctionArn = aws_lambda_function.upload_from_s3.arn
+    ErrorHandlerFunctionArn = aws_lambda_function.error_handler.arn
   })
 
   logging_configuration {

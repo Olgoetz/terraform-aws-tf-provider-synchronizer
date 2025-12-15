@@ -118,9 +118,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "config" {
 
 
 resource "aws_s3_object" "config" {
-  bucket = aws_s3_bucket.config.id
-  key    = "config.json"
-  content = var.config_json
+  bucket       = aws_s3_bucket.config.id
+  key          = "config.json"
+  content      = var.config_json
   content_type = "application/json"
 
 

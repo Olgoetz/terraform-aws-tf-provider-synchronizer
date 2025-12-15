@@ -73,7 +73,7 @@ def lambda_handler(event: Dict, context) -> Dict:
                         f"Provider {idx}: Missing required field '{field}' in config file")
 
             version = provider_config.get('version', 'latest')
-            
+
             # Resolve "latest" version from public registry
             if version.lower() == 'latest':
                 logger.info(f"Resolving 'latest' version for {provider_config['namespace']}/{provider_config['provider']}")
@@ -121,14 +121,14 @@ def lambda_handler(event: Dict, context) -> Dict:
 def get_latest_version(namespace: str, provider: str) -> str:
     """Get latest version from Terraform public registry."""
     url = f"https://registry.terraform.io/v1/providers/{namespace}/{provider}"
-    
+
     response = requests.get(url, timeout=10)
     response.raise_for_status()
-    
+
     data = response.json()
     version = data.get("version")
-    
+
     if not version:
         raise ValueError(f"No version found for {namespace}/{provider}")
-    
+
     return version

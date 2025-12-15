@@ -132,11 +132,6 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
-variable "proxy" {
-  description = "HTTP proxy URL for Lambda functions"
-  type        = string
-  default     = ""
-}
 
 variable "ca_bundle_secret_name" {
   description = "AWS Secrets Manager secret name containing the CA bundle for TLS verification. If not provided, default system CA bundle will be used."

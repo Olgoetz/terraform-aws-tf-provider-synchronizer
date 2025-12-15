@@ -24,24 +24,24 @@ _ca_bundle_path: Optional[str] = None
 def get_ca_bundle_path() -> Optional[str]:
     """Get CA bundle path from Secrets Manager."""
     global _ca_bundle_path
-    
+
     if _ca_bundle_path:
         return _ca_bundle_path
-    
+
     ca_secret_name = os.environ.get('CA_BUNDLE_SECRET_NAME')
     if not ca_secret_name:
         logger.debug("No CA bundle secret configured")
         return None
-    
+
     try:
         logger.info(f"Retrieving CA bundle from Secrets Manager: {ca_secret_name}")
         ca_bundle = get_secret(ca_secret_name)
-        
+
         # Write to temp file
         fd, path = tempfile.mkstemp(suffix='.pem')
         with os.fdopen(fd, 'w') as f:
             f.write(ca_bundle)
-        
+
         _ca_bundle_path = path
         logger.info(f"CA bundle written to: {path}")
         return path
@@ -140,15 +140,15 @@ def check_version_on_hcp(
 
     ca_bundle = get_ca_bundle_path()
     verify = ca_bundle if ca_bundle else True
-    
+
     logger.info(f"Checking version existence at: {url}")
     logger.debug(f"Using CA bundle: {ca_bundle}")
-    
+
     # Explicitly disable proxy for VPC-to-TFE communication
     response = requests.get(url, headers=headers, timeout=10, verify=verify, proxies={})
-    
+
     logger.info(f"Response status: {response.status_code}")
     if response.status_code not in [200, 404]:
         logger.warning(f"Unexpected status code: {response.status_code}, Response: {response.text}")
-    
+
     return response.status_code == 200

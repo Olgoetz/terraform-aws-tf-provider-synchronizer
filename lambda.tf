@@ -46,7 +46,7 @@ resource "terraform_data" "lambda_builds_directory" {
 
 # Package Lambda Layer
 data "archive_file" "lambda_layer" {
-  count = var.allow_local_exec_commands ? 1 : 0
+  count       = var.allow_local_exec_commands ? 1 : 0
   type        = "zip"
   source_dir  = "${path.module}/lambda/layer"
   output_path = "${path.module}/builds/lambda_layer.zip"
@@ -55,7 +55,7 @@ data "archive_file" "lambda_layer" {
 
 # Lambda Layer with requests library
 resource "aws_lambda_layer_version" "requests" {
-  count = var.allow_local_exec_commands ? 1 : 0
+  count               = var.allow_local_exec_commands ? 1 : 0
   filename            = data.archive_file.lambda_layer[0].output_path
   layer_name          = "${var.project_name}-requests-layer"
   source_code_hash    = data.archive_file.lambda_layer[0].output_base64sha256
@@ -139,11 +139,11 @@ resource "aws_lambda_function" "check_version" {
 
   environment {
     variables = {
-      TFC_TOKEN_SECRET_NAME  = aws_secretsmanager_secret.tfc_token.name
-      TFC_ORGANIZATION       = var.tfc_organization
-      TFC_ADDRESS            = var.tfc_address
-      CA_BUNDLE_SECRET_NAME  = var.ca_bundle_secret_name
-      LOG_LEVEL              = "INFO"
+      TFC_TOKEN_SECRET_NAME = aws_secretsmanager_secret.tfc_token.name
+      TFC_ORGANIZATION      = var.tfc_organization
+      TFC_ADDRESS           = var.tfc_address
+      CA_BUNDLE_SECRET_NAME = var.ca_bundle_secret_name
+      LOG_LEVEL             = "INFO"
     }
   }
 
@@ -278,11 +278,11 @@ resource "aws_lambda_function" "upload_from_s3" {
 
   environment {
     variables = {
-      TFC_TOKEN_SECRET_NAME  = aws_secretsmanager_secret.tfc_token.name
-      TFC_ORGANIZATION       = var.tfc_organization
-      TFC_ADDRESS            = var.tfc_address
-      CA_BUNDLE_SECRET_NAME  = var.ca_bundle_secret_name
-      LOG_LEVEL              = "INFO"
+      TFC_TOKEN_SECRET_NAME = aws_secretsmanager_secret.tfc_token.name
+      TFC_ORGANIZATION      = var.tfc_organization
+      TFC_ADDRESS           = var.tfc_address
+      CA_BUNDLE_SECRET_NAME = var.ca_bundle_secret_name
+      LOG_LEVEL             = "INFO"
     }
   }
 

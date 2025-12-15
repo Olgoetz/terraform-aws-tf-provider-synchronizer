@@ -45,7 +45,7 @@ def lambda_handler(event: Dict, context) -> Dict:
     try:
         # Get configuration from environment
         bucket_name = os.environ.get('S3_BUCKET_NAME')
-        
+
         if not bucket_name:
             raise ValueError("Missing required environment variable: S3_BUCKET_NAME")
 
@@ -63,16 +63,16 @@ def lambda_handler(event: Dict, context) -> Dict:
 
         # Download provider files to S3
         manifest = download_provider_to_s3(
-            namespace, provider, version, platforms, 
+            namespace, provider, version, platforms,
             bucket_name, s3_prefix
         )
-        
+
         # Add metadata to manifest
         manifest['gpg_key_id'] = gpg_key_id
         manifest['provider'] = provider
         manifest['namespace'] = namespace
         manifest['version'] = version
-        
+
         # Save manifest to S3
         manifest_key = f"{s3_prefix}manifest.json"
         s3_client.put_object(
@@ -81,7 +81,7 @@ def lambda_handler(event: Dict, context) -> Dict:
             Body=json.dumps(manifest, indent=2),
             ContentType='application/json'
         )
-        
+
         logger.info(f"Successfully downloaded {len(manifest['binaries'])} platforms to S3")
         logger.info(f"Manifest saved to s3://{bucket_name}/{manifest_key}")
 
@@ -101,17 +101,17 @@ def lambda_handler(event: Dict, context) -> Dict:
 
 
 def download_provider_to_s3(
-        namespace: str, 
-        provider: str, 
+        namespace: str,
+        provider: str,
         version: str,
-        platforms: List[Dict], 
-        bucket: str, 
+        platforms: List[Dict],
+        bucket: str,
         s3_prefix: str
 ) -> Dict:
     """Download provider files from public registry to S3."""
     logger.debug(f"Starting download for {namespace}/{provider} v{version}")
     registry_base = "https://registry.terraform.io/v1/providers"
-    
+
     manifest = {
         'binaries': [],
         'shasums_key': None,
@@ -137,7 +137,7 @@ def download_provider_to_s3(
         download_url = download_info['download_url']
         filename = f"terraform-provider-{provider}_{version}_{os_name}_{arch}.zip"
         s3_key = f"{s3_prefix}{filename}"
-        
+
         download_to_s3(download_url, bucket, s3_key)
 
         manifest['binaries'].append({
@@ -173,7 +173,7 @@ def download_provider_to_s3(
 def download_to_s3(url: str, bucket: str, s3_key: str) -> None:
     """Download a file from URL directly to S3."""
     logger.debug(f"Downloading {url} to s3://{bucket}/{s3_key}")
-    
+
     response = requests.get(url, stream=True, timeout=300)
     response.raise_for_status()
 
@@ -183,5 +183,5 @@ def download_to_s3(url: str, bucket: str, s3_key: str) -> None:
         bucket,
         s3_key
     )
-    
+
     logger.debug(f"Successfully uploaded to S3: {s3_key}")

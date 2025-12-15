@@ -25,27 +25,28 @@ s3_client = boto3.client('s3')
 # Global CA bundle path
 _ca_bundle_path: Optional[str] = None
 
+
 def get_ca_bundle_path() -> Optional[str]:
     """Get CA bundle path from Secrets Manager."""
     global _ca_bundle_path
-    
+
     if _ca_bundle_path:
         return _ca_bundle_path
-    
+
     ca_secret_name = os.environ.get('CA_BUNDLE_SECRET_NAME')
     if not ca_secret_name:
         logger.debug("No CA bundle secret configured")
         return None
-    
+
     try:
         logger.info(f"Retrieving CA bundle from Secrets Manager: {ca_secret_name}")
         ca_bundle = get_secret(ca_secret_name)
-        
+
         # Write to temp file
         fd, path = tempfile.mkstemp(suffix='.pem')
         with os.fdopen(fd, 'w') as f:
             f.write(ca_bundle)
-        
+
         _ca_bundle_path = path
         logger.info(f"CA bundle written to: {path}")
         return path
@@ -114,7 +115,7 @@ def lambda_handler(event: Dict, context) -> Dict:
         # Upload to HCP Terraform
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            
+
             upload_result = upload_to_hcp(
                 organization, provider, version, gpg_key_id,
                 manifest, bucket, token, tfc_address, temp_path
@@ -141,12 +142,12 @@ def lambda_handler(event: Dict, context) -> Dict:
 
 
 def upload_to_hcp(
-        organization: str, 
-        provider: str, 
+        organization: str,
+        provider: str,
         version: str,
-        gpg_key_id: str, 
-        manifest: Dict, 
-        bucket: str, 
+        gpg_key_id: str,
+        manifest: Dict,
+        bucket: str,
         token: str,
         tfc_address: str,
         temp_path: Path
@@ -190,7 +191,7 @@ def upload_to_hcp(
         # Download binary from S3 to temp
         binary_path = temp_path / binary_info['filename']
         s3_client.download_file(bucket, binary_info['s3_key'], str(binary_path))
-        
+
         shasum = calculate_shasum(binary_path)
 
         # Create platform
@@ -225,8 +226,8 @@ def check_provider_exists(
 
 
 def create_provider(
-        organization: str, 
-        provider: str, 
+        organization: str,
+        provider: str,
         headers: Dict,
         tfc_address: str
 ) -> None:
@@ -249,10 +250,10 @@ def create_provider(
 
 
 def create_version(
-        organization: str, 
-        provider: str, 
+        organization: str,
+        provider: str,
         version: str,
-        key_id: str, 
+        key_id: str,
         headers: Dict,
         tfc_address: str
 ) -> Dict:
@@ -279,12 +280,12 @@ def create_version(
 
 
 def create_platform(
-        organization: str, 
-        provider: str, 
+        organization: str,
+        provider: str,
         version: str,
-        os_name: str, 
-        arch: str, 
-        filename: str, 
+        os_name: str,
+        arch: str,
+        filename: str,
         shasum: str,
         headers: Dict,
         tfc_address: str
@@ -313,7 +314,7 @@ def create_platform(
 
 
 def upload_file_to_url(
-        filepath: Path, 
+        filepath: Path,
         url: str
 ) -> None:
     """Upload file to presigned URL."""
