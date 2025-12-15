@@ -57,7 +57,7 @@
               {
                 "Variable": "$.shouldProcess",
                 "BooleanEquals": true,
-                "Next": "DownloadAndUpload"
+                "Next": "DownloadToS3"
               }
             ],
             "Default": "VersionAlreadyExists"
@@ -75,10 +75,27 @@
             "End": true
           },
 
-          "DownloadAndUpload": {
+          "DownloadToS3": {
             "Type": "Task",
-            "Resource": "${DownloadAndUploadFunctionArn}",
-            "Comment": "Download from public registry and upload to HCP Terraform",
+            "Resource": "${DownloadToS3FunctionArn}",
+            "Comment": "Download from public registry to S3 (no VPC)",
+            "ResultPath": "$",
+            "TimeoutSeconds": 900,
+            "Next": "UploadFromS3",
+            "Retry": [
+              {
+                "ErrorEquals": ["States.TaskFailed"],
+                "IntervalSeconds": 5,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ]
+          },
+
+          "UploadFromS3": {
+            "Type": "Task",
+            "Resource": "${UploadFromS3FunctionArn}",
+            "Comment": "Upload from S3 to HCP Terraform (in VPC)",
             "ResultPath": "$.result",
             "TimeoutSeconds": 900,
             "End": true,

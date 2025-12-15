@@ -197,6 +197,40 @@ def export_gpg_key_from_keyring(key_id: str) -> Optional[str]:
         return None
 
 
+def extract_key_id_from_file(filepath: str) -> Optional[Dict[str, str]]:
+    """Extract GPG key ID from ASCII armored key file."""
+    path = Path(filepath)
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {filepath}")
+    
+    try:
+        result = subprocess.run(
+            ["gpg", "--show-keys", "--with-colons", filepath],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        # Parse the output to extract key information
+        # Format: pub:...:keysize:algorithm:keyid:creation_date:...
+        key_info = {}
+        for line in result.stdout.splitlines():
+            parts = line.split(':')
+            if parts[0] == 'pub':  # Public key
+                key_info['key_id'] = parts[4]
+                key_info['algorithm'] = parts[3]
+                key_info['keysize'] = parts[2]
+                key_info['created'] = parts[5]
+            elif parts[0] == 'uid':  # User ID
+                key_info['uid'] = parts[9]
+            elif parts[0] == 'fpr':  # Fingerprint
+                key_info['fingerprint'] = parts[9]
+        
+        return key_info if key_info else None
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        return None
+
+
 def format_key_info(key_data: Dict) -> None:
     """Pretty print GPG key information."""
     attrs = key_data.get("attributes", {})
@@ -422,6 +456,41 @@ def cmd_fetch(args, manager: GPGKeyManager):
         return 1
 
 
+def cmd_extract(args, manager: GPGKeyManager):
+    """Extract key ID from ASCII armored key file."""
+    try:
+        print(f"Extracting key information from: {args.file}")
+        
+        key_info = extract_key_id_from_file(args.file)
+        
+        if not key_info:
+            print(f"Error: Could not extract key information from file", file=sys.stderr)
+            return 1
+        
+        print(f"\nGPG Key Information:")
+        print(f"  Key ID:      {key_info.get('key_id', 'N/A')}")
+        print(f"  Fingerprint: {key_info.get('fingerprint', 'N/A')}")
+        print(f"  Algorithm:   {key_info.get('algorithm', 'N/A')}")
+        print(f"  Key Size:    {key_info.get('keysize', 'N/A')} bits")
+        
+        if 'uid' in key_info:
+            print(f"  User ID:     {key_info['uid']}")
+        
+        if 'created' in key_info:
+            # Convert Unix timestamp to readable date
+            from datetime import datetime
+            created_date = datetime.fromtimestamp(int(key_info['created']))
+            print(f"  Created:     {created_date.strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        return 0
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error extracting key information: {e}", file=sys.stderr)
+        return 1
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -444,6 +513,9 @@ Examples:
   %(prog)s fetch integrations github --version 6.9.0
   %(prog)s fetch integrations github --show-key
   %(prog)s fetch integrations github --output github-key.asc
+
+  # Extract key ID from ASCII armored key file
+  %(prog)s extract --file my-key.asc
 
   # Create a new key from file
   %(prog)s create --file my-key.asc
@@ -481,6 +553,11 @@ Examples:
     fetch_parser.add_argument('--output', help='Save key to file')
     fetch_parser.set_defaults(func=cmd_fetch)
 
+    # Extract command
+    extract_parser = subparsers.add_parser('extract', help='Extract key ID from ASCII armored key file')
+    extract_parser.add_argument('--file', required=True, help='Path to ASCII armored GPG key file')
+    extract_parser.set_defaults(func=cmd_extract)
+
     # Create command
     create_parser = subparsers.add_parser('create', help='Create (upload) a new GPG key')
     create_group = create_parser.add_mutually_exclusive_group(required=True)
@@ -502,13 +579,13 @@ Examples:
 
     args = parser.parse_args()
 
-    # Get credentials from environment (not required for fetch command)
+    # Get credentials from environment (not required for fetch and extract commands)
     token = os.environ.get("TFC_TOKEN")
     organization = os.environ.get("TFC_ORGANIZATION")
 
-    # For fetch command, we don't need HCP credentials
-    if args.command == 'fetch':
-        # Create a minimal manager just for the fetch operation
+    # For fetch and extract commands, we don't need HCP credentials
+    if args.command in ['fetch', 'extract']:
+        # Create a minimal manager just for these operations
         manager = GPGKeyManager(token or "", organization or "")
         exit_code = args.func(args, manager)
         sys.exit(exit_code)

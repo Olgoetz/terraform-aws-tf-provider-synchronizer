@@ -49,7 +49,8 @@ resource "aws_iam_role_policy" "lambda_s3" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
-          "s3:GetObjectVersion"
+          "s3:GetObjectVersion",
+          "s3:PutObject"
         ]
         Resource = "${aws_s3_bucket.config.arn}/*"
       },
@@ -96,7 +97,10 @@ resource "aws_iam_role_policy" "lambda_secrets" {
         Action = [
           "secretsmanager:GetSecretValue"
         ]
-        Resource = aws_secretsmanager_secret.tfc_token.arn
+        Resource = concat(
+          [aws_secretsmanager_secret.tfc_token.arn],
+          var.ca_bundle_secret_name != "" ? ["arn:aws:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:${var.ca_bundle_secret_name}*"] : []
+        )
       }
     ]
   })
@@ -124,6 +128,41 @@ resource "aws_iam_role_policy" "lambda_vpc" {
       }
     ]
   })
+}
+
+# KMS policy for Lambda (required when using customer-managed KMS keys)
+resource "aws_iam_role_policy" "lambda_kms" {
+  count = var.kms_key_arn != null ? 1 : 0
+  name  = "lambda-kms-access"
+  role  = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = var.kms_key_arn
+      }
+    ]
+  })
+}
+
+# KMS grant for Lambda to access encrypted resources
+resource "aws_kms_grant" "lambda" {
+  count             = var.kms_key_arn != null ? 1 : 0
+  name              = "${var.project_name}-lambda-grant"
+  key_id            = var.kms_key_arn
+  grantee_principal = aws_iam_role.lambda.arn
+
+  operations = [
+    "Decrypt",
+    "GenerateDataKey",
+    "DescribeKey"
+  ]
 }
 
 # IAM role for Step Functions
@@ -160,7 +199,8 @@ resource "aws_iam_role_policy" "stepfunctions_lambda" {
         Resource = [
           aws_lambda_function.read_config.arn,
           aws_lambda_function.check_version.arn,
-          aws_lambda_function.download_and_upload.arn,
+          aws_lambda_function.download_to_s3.arn,
+          aws_lambda_function.upload_from_s3.arn,
           aws_lambda_function.error_handler.arn
         ]
       }

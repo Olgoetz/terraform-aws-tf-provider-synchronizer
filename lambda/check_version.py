@@ -6,7 +6,8 @@ import os
 import logging
 import boto3
 import requests
-from typing import Dict
+import tempfile
+from typing import Dict, Optional
 
 # Configure logging
 logger = logging.getLogger()
@@ -15,6 +16,38 @@ logger.setLevel(getattr(logging, log_level, logging.INFO))
 
 # Secrets Manager client
 secretsmanager = boto3.client('secretsmanager')
+
+# Global CA bundle path
+_ca_bundle_path: Optional[str] = None
+
+
+def get_ca_bundle_path() -> Optional[str]:
+    """Get CA bundle path from Secrets Manager."""
+    global _ca_bundle_path
+    
+    if _ca_bundle_path:
+        return _ca_bundle_path
+    
+    ca_secret_name = os.environ.get('CA_BUNDLE_SECRET_NAME')
+    if not ca_secret_name:
+        logger.debug("No CA bundle secret configured")
+        return None
+    
+    try:
+        logger.info(f"Retrieving CA bundle from Secrets Manager: {ca_secret_name}")
+        ca_bundle = get_secret(ca_secret_name)
+        
+        # Write to temp file
+        fd, path = tempfile.mkstemp(suffix='.pem')
+        with os.fdopen(fd, 'w') as f:
+            f.write(ca_bundle)
+        
+        _ca_bundle_path = path
+        logger.info(f"CA bundle written to: {path}")
+        return path
+    except Exception as e:
+        logger.warning(f"Failed to retrieve CA bundle: {e}. Using default CA verification.")
+        return None
 
 
 def get_secret(secret_name: str) -> str:
@@ -30,20 +63,20 @@ def get_secret(secret_name: str) -> str:
 def lambda_handler(event: Dict, context) -> Dict:
     """
     Check if provider version already exists on HCP Terraform.
+    Version resolution ("latest" → actual version) is done by read_config Lambda.
 
     Expected event structure:
     {
         "config": {...},
         "provider": "aws",
         "namespace": "hashicorp",
-        "version": "6.26.0" or "latest",
+        "version": "6.26.0",  # Already resolved, never "latest"
         ...
     }
 
     Returns:
     {
         "versionExists": true/false,
-        "resolvedVersion": "6.26.0",
         "shouldProcess": true/false,
         ...original event fields
     }
@@ -65,23 +98,13 @@ def lambda_handler(event: Dict, context) -> Dict:
 
         provider = event['provider']
         namespace = event['namespace']
-        version = event['version']
+        version = event['version']  # Already resolved by read_config Lambda
 
-        logger.info(f"Checking version for {namespace}/{provider} v{version}")
-
-        # Resolve version if it's "latest"
-        resolved_version = version
-        if version.lower() == "latest":
-            logger.info(
-                f"Resolving 'latest' version for {namespace}/{provider}")
-            resolved_version = get_latest_version(namespace, provider)
-            logger.info(f"Resolved version: {resolved_version}")
+        logger.info(f"Checking if {namespace}/{provider} v{version} exists on {tfc_address}")
 
         # Check if version exists on HCP/TFE
-        logger.info(
-            f"Checking if {organization}/{provider} v{resolved_version} exists on {tfc_address}")
         version_exists = check_version_on_hcp(
-            organization, provider, resolved_version, token, tfc_address
+            organization, provider, version, token, tfc_address
         )
         logger.info(
             f"Version exists: {version_exists}, should process: {not version_exists}")
@@ -90,7 +113,6 @@ def lambda_handler(event: Dict, context) -> Dict:
         return {
             **event,
             'versionExists': version_exists,
-            'resolvedVersion': resolved_version,
             'shouldProcess': not version_exists,
             'statusCode': 200
         }
@@ -98,22 +120,6 @@ def lambda_handler(event: Dict, context) -> Dict:
     except Exception as e:
         logger.error(f"Error checking HCP version: {str(e)}")
         raise Exception(f"Error checking HCP version: {str(e)}")
-
-
-def get_latest_version(namespace: str, provider: str) -> str:
-    """Get latest version from Terraform public registry."""
-    url = f"https://registry.terraform.io/v1/providers/{namespace}/{provider}"
-
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-
-    data = response.json()
-    version = data.get("version")
-
-    if not version:
-        raise ValueError(f"No version found for {namespace}/{provider}")
-
-    return version
 
 
 def check_version_on_hcp(
@@ -132,8 +138,17 @@ def check_version_on_hcp(
         "Content-Type": "application/vnd.api+json"
     }
 
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        return response.status_code == 200
-    except Exception:
-        return False
+    ca_bundle = get_ca_bundle_path()
+    verify = ca_bundle if ca_bundle else True
+    
+    logger.info(f"Checking version existence at: {url}")
+    logger.debug(f"Using CA bundle: {ca_bundle}")
+    
+    # Explicitly disable proxy for VPC-to-TFE communication
+    response = requests.get(url, headers=headers, timeout=10, verify=verify, proxies={})
+    
+    logger.info(f"Response status: {response.status_code}")
+    if response.status_code not in [200, 404]:
+        logger.warning(f"Unexpected status code: {response.status_code}, Response: {response.text}")
+    
+    return response.status_code == 200

@@ -6,6 +6,7 @@ import json
 import os
 import logging
 import boto3
+import requests
 from typing import Dict
 
 # Configure logging
@@ -71,12 +72,20 @@ def lambda_handler(event: Dict, context) -> Dict:
                     raise ValueError(
                         f"Provider {idx}: Missing required field '{field}' in config file")
 
+            version = provider_config.get('version', 'latest')
+            
+            # Resolve "latest" version from public registry
+            if version.lower() == 'latest':
+                logger.info(f"Resolving 'latest' version for {provider_config['namespace']}/{provider_config['provider']}")
+                version = get_latest_version(provider_config['namespace'], provider_config['provider'])
+                logger.info(f"Resolved to version: {version}")
+
             # Enrich with extracted fields for easy access
             enriched_config = {
                 'config': provider_config,
                 'provider': provider_config['provider'],
                 'namespace': provider_config['namespace'],
-                'version': provider_config.get('version', 'latest'),
+                'version': version,
                 'gpg_key_id': provider_config.get('gpg-key-id'),
                 'platforms': provider_config['platforms'],
                 'bucket': bucket,
@@ -85,7 +94,7 @@ def lambda_handler(event: Dict, context) -> Dict:
             enriched_providers.append(enriched_config)
             logger.info(
                 f"Validated: {provider_config['namespace']}/{provider_config['provider']} "
-                f"v{provider_config.get('version', 'latest')}")
+                f"v{version}")
 
         logger.info(
             f"Successfully read and validated {len(enriched_providers)} provider configs")
@@ -107,3 +116,19 @@ def lambda_handler(event: Dict, context) -> Dict:
     except Exception as e:
         logger.error(f"Error reading config from S3: {str(e)}")
         raise Exception(f"Error reading config from S3: {str(e)}")
+
+
+def get_latest_version(namespace: str, provider: str) -> str:
+    """Get latest version from Terraform public registry."""
+    url = f"https://registry.terraform.io/v1/providers/{namespace}/{provider}"
+    
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+    
+    data = response.json()
+    version = data.get("version")
+    
+    if not version:
+        raise ValueError(f"No version found for {namespace}/{provider}")
+    
+    return version

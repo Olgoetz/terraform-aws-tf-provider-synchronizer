@@ -1,12 +1,12 @@
-variable "aws_region" {
-  description = "AWS region to deploy resources"
-  type        = string
-}
-
 variable "allow_local_exec_commands" {
   description = "Allow the execution of local-exec provisioner"
   type        = bool
   default     = false
+}
+
+variable "config_json" {
+  description = "Provider configuration JSON content to be uploaded to S3"
+  type        = string
 }
 
 variable "project_name" {
@@ -32,9 +32,9 @@ variable "tfc_address" {
   default     = "https://app.terraform.io"
 }
 
-variable "notification_email" {
+variable "notification_emails" {
   description = "Email address for error notifications"
-  type        = string
+  type        = list(string)
 }
 
 variable "sns_topic_display_name" {
@@ -76,7 +76,13 @@ variable "config_bucket_name" {
 variable "lambda_runtime" {
   description = "Lambda runtime version"
   type        = string
-  default     = "python3.11"
+  default     = "python3.12"
+}
+
+variable "lambda_layer_arn" {
+  description = "ARN of the Lambda layer to use"
+  type        = string
+  default     = null
 }
 
 variable "lambda_timeout" {
@@ -125,4 +131,15 @@ variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)
   default     = {}
+}
+variable "proxy" {
+  description = "HTTP proxy URL for Lambda functions"
+  type        = string
+  default     = ""
+}
+
+variable "ca_bundle_secret_name" {
+  description = "AWS Secrets Manager secret name containing the CA bundle for TLS verification. If not provided, default system CA bundle will be used."
+  type        = string
+  default     = ""
 }

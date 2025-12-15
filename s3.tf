@@ -101,14 +101,28 @@ resource "aws_s3_bucket_lifecycle_configuration" "config" {
       days_after_initiation = 7
     }
   }
+
+  rule {
+    id     = "cleanup-tmp-folder"
+    status = "Enabled"
+
+    filter {
+      prefix = "tmp/"
+    }
+
+    expiration {
+      days = 1
+    }
+  }
 }
 
 
 resource "aws_s3_object" "config" {
   bucket = aws_s3_bucket.config.id
   key    = "config.json"
-  source = "${path.module}/config.json"
-  etag   = filemd5("${path.module}/config.json")
+  content = var.config_json
+  content_type = "application/json"
+
 
   lifecycle {
     action_trigger {

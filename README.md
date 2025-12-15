@@ -3,7 +3,6 @@
 [![Terraform](https://img.shields.io/badge/Terraform-%3E%3D1.14.0-623CE4?logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![AWS Provider](https://img.shields.io/badge/AWS%20Provider-~%3E6.0-FF9900?logo=amazon-aws&logoColor=white)](https://registry.terraform.io/providers/hashicorp/aws/latest)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![AWS Lambda](https://img.shields.io/badge/AWS%20Lambda-Serverless-FF9900?logo=aws-lambda&logoColor=white)](https://aws.amazon.com/lambda/)
 [![Step Functions](https://img.shields.io/badge/AWS%20Step%20Functions-Orchestration-C925D1?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/step-functions/)

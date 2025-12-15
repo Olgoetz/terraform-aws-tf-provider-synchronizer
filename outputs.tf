@@ -26,7 +26,6 @@ output "sns_topic_arn" {
 output "tfc_token_secret_arn" {
   description = "ARN of the Secrets Manager secret containing the TFC token"
   value       = aws_secretsmanager_secret.tfc_token.arn
-  sensitive   = true
 }
 
 output "tfc_token_secret_name" {
@@ -39,7 +38,6 @@ output "lambda_function_arns" {
   value = {
     read_config          = aws_lambda_function.read_config.arn
     check_version        = aws_lambda_function.check_version.arn
-    download_and_upload  = aws_lambda_function.download_and_upload.arn
     error_handler        = aws_lambda_function.error_handler.arn
     cleanup_old_versions = aws_lambda_function.cleanup_old_versions.arn
   }
@@ -88,7 +86,6 @@ output "cloudwatch_log_groups" {
     stepfunctions        = aws_cloudwatch_log_group.stepfunctions.name
     read_config          = aws_cloudwatch_log_group.read_config.name
     check_version        = aws_cloudwatch_log_group.check_version.name
-    download_and_upload  = aws_cloudwatch_log_group.download_and_upload.name
     error_handler        = aws_cloudwatch_log_group.error_handler.name
     cleanup_old_versions = aws_cloudwatch_log_group.cleanup_old_versions.name
   }
